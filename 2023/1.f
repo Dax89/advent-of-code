@@ -1,7 +1,7 @@
 variable total
 create clvalue 2 cells allot
 
-: newline? ( c -- u ) 0x0a = ;
+: newline? ( c -- f ) 0x0a = ;
 : cal-value-1 ( n -- v ) clvalue 0 cells + ;
 : cal-value-2 ( n -- v ) clvalue 1 cells + ;
 
@@ -15,72 +15,66 @@ create clvalue 2 cells allot
     r> close-file throw      \ (addr rsize) close file
 ;
 
-: find-first-digit ( c-saddr c-eaddr -- c-addr d f )
-    over do
-        dup c@ newline? if
-            unloop 0 false exit
-        then
-        dup c@ digit? if 
-            unloop true exit
-        then
-        char+
-    loop
-
-    0 false
+: reset-cal-values ( -- )
+    -1 cal-value-1 !
+    -1 cal-value-2 !
 ;
 
-: find-last-digit ( c-saddr c-eaddr -- c-addr d f )
-    -1 -rot \ prepare result
-
-    over ?do
-        dup c@ newline? if
-            leave
-        then
-        dup c@ digit? if 
-            rot drop swap \ remove old digit
-        then
-        char+
-    loop
-
-    swap
-    dup -1 = if false else true then
+: update-cal-value ( v -- )
+    cal-value-1 @ -1 = if
+        dup cal-value-1 !
+        cal-value-2 !  \ initialize val-2 as val-1 (for single valued lines)
+    else
+        cal-value-2 !
+    then
 ;
 
-: sum-lines ( c-saddr c-eaddr -- total c-addr )
-  over >r \ Save start address
-
-  begin
-      -1 cal-value-1 !
-      -1 cal-value-2 !
-
-      2dup find-first-digit if
-        cal-value-1 ! drop
-
-        2dup find-last-digit if
-          cal-value-2 !
-        then
-      then 
-
-      char+            \ Advance over found digit
-      rot drop swap    \ Prepare stack for next iteration
-
-      cal-value-1 @ -1 <> cal-value-2 @ -1 <> and if
+: update-total ( -- )
+    cal-value-1 @ -1 <> cal-value-2 @ -1 <> and if
         cal-value-1 @ 10 * cal-value-2 @ + \ Calculate line's number
         total @ + total ! \ Add to total
-      then
-
-      2dup swap - 0 <= \ Are we at the end?
-  until
-
-  2drop  \ Pop start/end
-  total @ r> 
+    then
 ;
 
-0 total !
-s" /home/davide/aoc_true.txt" x-slurp-file 
-over + \ save end address
-sum-lines
-free throw \ free address 
+: sum-lines ( c-saddr c-endaddr -- total )
+    0 total !
+    reset-cal-values
 
-." Total is " . cr
+    swap ?do
+        i c@  \ Push character
+
+        dup newline? if
+            update-total
+            reset-cal-values
+        else
+            dup digit? if 
+                update-cal-value
+            then
+        then
+
+        drop  \ Pop character
+    loop
+
+    update-total \ Collect end-of-string calibrations
+    total @
+;
+
+: main ( -- )
+    next-arg 
+
+    dup 0 = if
+        ." Missing filename, quitting..." cr
+        exit
+    then
+
+    ." Loading " 2dup type cr
+    x-slurp-file 
+    over +                   \ calc end address
+    over swap sum-lines
+
+    ." Total is " . cr
+    free throw               \ free address 
+;
+
+main
 bye
