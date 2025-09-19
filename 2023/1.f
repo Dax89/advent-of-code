@@ -72,14 +72,6 @@ create clvalue 2 cells allot
     then
 ;
 
-: trim-to ( c-saddr n c-taddr tn -- c-saddr' n' )
-    2>r 2dup 2r> search if 
-      drop nip over -
-    then
-;
-
-: trim-to-nl ( c-saddr n -- c-saddr' n' ) s\" \n" trim-to ;
-
 : sum-lines ( c-saddr n -- total )
     0 total !
     reset-cal-values
@@ -120,6 +112,7 @@ create clvalue 2 cells allot
     ." Total is " . cr
     free throw               \ free address 
 ;
+
 
 main
 bye
