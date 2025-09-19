@@ -1,9 +1,50 @@
 variable total
+
+: digit-pair ( val c-addr n -- ) , , , ;
+
+create ldigits 1 s" one" digit-pair
+               2 s" two" digit-pair
+               3 s" three" digit-pair
+               4 s" four" digit-pair
+               5 s" five" digit-pair
+               6 s" six" digit-pair
+               7 s" seven" digit-pair
+               8 s" eight" digit-pair
+               9 s" nine" digit-pair
+
+here constant ldigits_end
+
+: digit-name ( entry -- name u ) 2@ ;
+: digit-name-len ( entry -- len ) @ ;
+: digit-value ( entry -- val ) 2 cells + @ ;
+
+: is-digit? ( c-addr u -- c-addr' u' d t | f ) 
+    dup 0 = if 0 false exit then \ Check if string is empty
+
+    ldigits_end ldigits do
+        2dup i digit-name string-prefix? if
+            i digit-name-len 1 - /string \ Handle cases like 'oneight'
+            i digit-value
+            true
+            unloop exit
+        then
+    3 cells +loop
+
+    \ Fallback to default implementation
+    over c@ digit? if
+        -rot 1 /string rot
+        true
+    else
+        false
+    then
+;
+
 create clvalue 2 cells allot
 
 : newline? ( c -- f ) 0x0a = ;
 : cal-value-1 ( n -- v ) clvalue 0 cells + ;
 : cal-value-2 ( n -- v ) clvalue 1 cells + ;
+: reset-cal-values ( -- ) -1 cal-value-1 ! -1 cal-value-2 ! ;
 
 : x-slurp-file ( c-addr u -- addr n )
     r/o open-file throw >r   \ () save fileid on return stack
@@ -13,11 +54,6 @@ create clvalue 2 cells allot
     rot                      \ (addr addr size) reorder
     r@ read-file throw       \ (addr rsize) read into buffer, consume fileid
     r> close-file throw      \ (addr rsize) close file
-;
-
-: reset-cal-values ( -- )
-    -1 cal-value-1 !
-    -1 cal-value-2 !
 ;
 
 : update-cal-value ( v -- )
@@ -36,25 +72,35 @@ create clvalue 2 cells allot
     then
 ;
 
-: sum-lines ( c-saddr c-endaddr -- total )
+: trim-to ( c-saddr n c-taddr tn -- c-saddr' n' )
+    2>r 2dup 2r> search if 
+      drop nip over -
+    then
+;
+
+: trim-to-nl ( c-saddr n -- c-saddr' n' ) s\" \n" trim-to ;
+
+: sum-lines ( c-saddr n -- total )
     0 total !
     reset-cal-values
 
-    swap ?do
-        i c@  \ Push character
-
-        dup newline? if
+    begin
+       over c@ newline? if
             update-total
             reset-cal-values
-        else
-            dup digit? if 
-                update-cal-value
-            then
-        then
+            1 /string
+       else
+           is-digit? if
+               update-cal-value
+           else
+               1 /string
+           then
+       then
 
-        drop  \ Pop character
-    loop
+       dup 0 =
+    until
 
+    2drop
     update-total \ Collect end-of-string calibrations
     total @
 ;
@@ -69,7 +115,6 @@ create clvalue 2 cells allot
 
     ." Loading " 2dup type cr
     x-slurp-file 
-    over +                   \ calc end address
     over swap sum-lines
 
     ." Total is " . cr
