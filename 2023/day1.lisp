@@ -41,8 +41,6 @@
         (+ n1 (* n2 10)) 
         0)))
 
-(process-line "oneight")
-
 (defparameter *total*  0)
 
 (with-open-file (stream "./day1.txt")
