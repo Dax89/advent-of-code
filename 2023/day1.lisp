@@ -8,10 +8,10 @@
                               ("eight" . 8)
                               ("nine"  . 9)))
 
-(defun string-starts-with (s1 s2 &key (start 0))
-  (let ((end (+ start (length s2)))) 
+(defun string-starts-with (s1 s2)
+  (let ((end (length s2))) 
     (when (<= end (length s1))
-      (string= s1 s2 :start1 start :end1 end))))
+      (string= s1 s2 :end1 end))))
 
 (defun convert-to-digit (s)
   (unless (zerop (length s))  ; Look for digits
@@ -40,6 +40,8 @@
     (if (and n2 n1) 
         (+ n1 (* n2 10)) 
         0)))
+
+(process-line "oneight")
 
 (defparameter *total*  0)
 
